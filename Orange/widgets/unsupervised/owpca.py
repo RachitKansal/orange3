@@ -248,6 +248,8 @@ class OWPCA(widget.OWWidget):
     def _on_cut_changed(self, line):
         # cut changed by means of a cut line over the scree plot.
         value = line.value()
+        self._line.setValue(round(value))
+        # print(round(value))
         current = self._nselected_components()
         components = int(numpy.floor(value)) + 1
 
