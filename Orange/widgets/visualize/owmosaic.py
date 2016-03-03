@@ -24,6 +24,8 @@ from Orange.widgets.utils.colorpalette import DefaultRGBColors
 from Orange.widgets.utils.scaling import get_variable_values_sorted
 from Orange.widgets.widget import OWWidget, Default
 from Orange.widgets.io import FileFormat
+from Orange.preprocess import Discretize
+from Orange.preprocess.discretize import EqualFreq
 
 PEARSON = 0
 CLASS_DISTRIBUTION = 1
@@ -336,8 +338,11 @@ class OWMosaicDisplay(OWWidget):
             return
 
         if any(attr.is_continuous for attr in self.data.domain):
-            self.information(0, "Data contains continuous variables. "
-                                "Discretize the data to use them.")
+            self.data = Discretize(method=EqualFreq(n=4))(self.data)
+
+        # if any(attr.is_continuous for attr in self.data.domain):
+        #     self.information(0, "Data contains continuous variables. "
+        #                         "Discretize the data to use them.")
 
         """ TODO: check
         if data.has_missing_class():
