@@ -108,14 +108,13 @@ class OWSieveDiagram(OWWidget):
         self.openContext(self.data)
 
         self.information(0, "")
-        if data and any(attr.is_continuous for attr in data.domain):
+        if self.data and any(attr.is_continuous for attr in self.data.domain):
             self.data = Discretize(method=EqualFreq(n=4))(self.data)
 
-        if data and any(attr.is_continuous for attr in data.domain):
-            self.information(0, "Data contains continuous variables. "
-                                "Discretize the data to use them.")
-        else:
-            print("NOOOOOOOOOOOOOOOOOOOOOOOO")
+        # if self.data and any(attr.is_continuous for attr in self.data.domain):
+        #     self.information(0, "Data contains continuous variables. "
+        #                         "Discretize the data to use them.")
+
         self.resolve_shown_attributes()
         self.update_selection()
 
