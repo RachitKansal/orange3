@@ -238,7 +238,7 @@ class OWPCA(widget.OWWidget):
             bounds=(0, p - 1)
         )
         self._line.setCursor(Qt.SizeHorCursor)
-        self._line.setPen(pg.mkPen(QColor(Qt.darkGray), width=1.5))
+        self._line.setPen(pg.mkPen(QColor(Qt.darkGray), width=5))
         self._line.sigPositionChanged.connect(self._on_cut_changed)
 
         self.plot.addItem(self._line)
