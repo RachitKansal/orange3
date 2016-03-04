@@ -296,6 +296,9 @@ class OWMosaicDisplay(OWWidget):
         self.attr3Combo.addItem("(None)")
         self.attr4Combo.addItem("(None)")
 
+        if any(attr.is_continuous for attr in data.domain):
+            data = Discretize(method=EqualFreq(n=4))(data)
+
         for attr in data.domain:
             if attr.is_discrete:
                 for combo in [self.attr1Combo, self.attr2Combo, self.attr3Combo, self.attr4Combo]:
@@ -337,8 +340,8 @@ class OWMosaicDisplay(OWWidget):
         if not self.data:
             return
 
-        if any(attr.is_continuous for attr in self.data.domain):
-            self.data = Discretize(method=EqualFreq(n=4))(self.data)
+        # if any(attr.is_continuous for attr in self.data.domain):
+        #     self.data = Discretize(method=EqualFreq(n=4))(self.data)
 
         # if any(attr.is_continuous for attr in self.data.domain):
         #     self.information(0, "Data contains continuous variables. "
@@ -451,6 +454,13 @@ class OWMosaicDisplay(OWWidget):
 
         if data == -1:
             data = self.data
+
+        if any(attr.is_continuous for attr in data.domain):
+            data = Discretize(method=EqualFreq(n=4))(data)
+
+        if any(attr.is_continuous for attr in data.domain):
+            self.information(0, "Data contains continuous variables. "
+                                "Discretize the data to use them.")
 
         if subsetData == -1:
             subsetData = self.subset_data
