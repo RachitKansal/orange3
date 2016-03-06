@@ -296,13 +296,9 @@ class OWMosaicDisplay(OWWidget):
         self.attr3Combo.addItem("(None)")
         self.attr4Combo.addItem("(None)")
 
-        if any(attr.is_continuous for attr in data.domain):
-            data = Discretize(method=EqualFreq(n=4))(data)
-
         for attr in data.domain:
-            if attr.is_discrete:
-                for combo in [self.attr1Combo, self.attr2Combo, self.attr3Combo, self.attr4Combo]:
-                    combo.addItem(self.icons[attr], attr.name)
+            for combo in [self.attr1Combo, self.attr2Combo, self.attr3Combo, self.attr4Combo]:
+                combo.addItem(self.icons[attr], attr.name)
 
         if self.attr1Combo.count() > 0:
             self.variable1 = str(self.attr1Combo.itemText(0))
@@ -340,12 +336,9 @@ class OWMosaicDisplay(OWWidget):
         if not self.data:
             return
 
-        # if any(attr.is_continuous for attr in self.data.domain):
-        #     self.data = Discretize(method=EqualFreq(n=4))(self.data)
-
-        # if any(attr.is_continuous for attr in self.data.domain):
-        #     self.information(0, "Data contains continuous variables. "
-        #                         "Discretize the data to use them.")
+        if any(attr.is_continuous for attr in self.data.domain):
+            self.information(0, "Data contains continuous variables. "
+                                "Default Discretization by Equal Frequency.")
 
         """ TODO: check
         if data.has_missing_class():
@@ -458,10 +451,6 @@ class OWMosaicDisplay(OWWidget):
         if any(attr.is_continuous for attr in data.domain):
             data = Discretize(method=EqualFreq(n=4))(data)
 
-        if any(attr.is_continuous for attr in data.domain):
-            self.information(0, "Data contains continuous variables. "
-                                "Discretize the data to use them.")
-
         if subsetData == -1:
             subsetData = self.subset_data
 
@@ -553,7 +542,7 @@ class OWMosaicDisplay(OWWidget):
                 self.getConditionalDistributions(subsetData, attrList)
 
         # draw rectangles
-        self.DrawData(attrList, (xOff, xOff + squareSize), (yOff, yOff + squareSize), 0, "", len(attrList), **args)
+        self.DrawData(data, attrList, (xOff, xOff + squareSize), (yOff, yOff + squareSize), 0, "", len(attrList), **args)
         if args.get("drawLegend", 1):
             self.DrawLegend(data, (xOff, xOff + squareSize), (yOff, yOff + squareSize))  # draw class legend
 
@@ -605,19 +594,19 @@ class OWMosaicDisplay(OWWidget):
     # ############################################################################
 
     ##  DRAW DATA - draw rectangles for attributes in attrList inside rect (x0,x1), (y0,y1)
-    def DrawData(self, attrList, x0_x1, y0_y1, side, condition, totalAttrs, used_attrs=[], used_vals=[],
+    def DrawData(self, data, attrList, x0_x1, y0_y1, side, condition, totalAttrs, used_attrs=[], used_vals=[],
                  attrVals="", **args):
         x0, x1 = x0_x1
         y0, y1 = y0_y1
         if self.conditionalDict[attrVals] == 0:
             self.addRect(x0, x1, y0, y1, "", used_attrs, used_vals, attrVals=attrVals)
-            self.DrawText(side, attrList[0], (x0, x1), (y0, y1), totalAttrs, used_attrs, used_vals,
+            self.DrawText(data, side, attrList[0], (x0, x1), (y0, y1), totalAttrs, used_attrs, used_vals,
                           attrVals)  # store coordinates for later drawing of labels
             return
 
         attr = attrList[0]
         edge = len(attrList) * self._cellspace  # how much smaller rectangles do we draw
-        values = self.attributeValuesDict.get(attr, None) or get_variable_values_sorted(self.data.domain[attr])
+        values = self.attributeValuesDict.get(attr, None) or get_variable_values_sorted(data.domain[attr])
         if side % 2: values = values[::-1]  # reverse names if necessary
 
         if side % 2 == 0:  # we are drawing on the x axis
@@ -639,7 +628,7 @@ class OWMosaicDisplay(OWWidget):
         valRange = list(range(len(values)))
         if len(attrList + used_attrs) == 4 and len(used_attrs) == 2:
             attr1Values = self.attributeValuesDict.get(used_attrs[0], None) or get_variable_values_sorted(
-                self.data.domain[used_attrs[0]])
+                data.domain[used_attrs[0]])
             if used_vals[0] == attr1Values[-1]:
                 valRange = valRange[::-1]
 
@@ -659,7 +648,7 @@ class OWMosaicDisplay(OWWidget):
                                  condition + 4 * "&nbsp;" + attr + ": <b>" + htmlVal + "</b><br>", used_attrs + [attr],
                                  used_vals + [val], newAttrVals, **args)
                 else:
-                    self.DrawData(attrList[1:], (x0 + start, x0 + end), (y0, y1), side + 1,
+                    self.DrawData(data, attrList[1:], (x0 + start, x0 + end), (y0, y1), side + 1,
                                   condition + 4 * "&nbsp;" + attr + ": <b>" + htmlVal + "</b><br>", totalAttrs,
                                   used_attrs + [attr], used_vals + [val], newAttrVals, **args)
             else:
@@ -668,15 +657,15 @@ class OWMosaicDisplay(OWWidget):
                                  condition + 4 * "&nbsp;" + attr + ": <b> " + htmlVal + "</b><br>", used_attrs + [attr],
                                  used_vals + [val], newAttrVals, **args)
                 else:
-                    self.DrawData(attrList[1:], (x0, x1), (y0 + start, y0 + end), side + 1,
+                    self.DrawData(data, attrList[1:], (x0, x1), (y0 + start, y0 + end), side + 1,
                                   condition + 4 * "&nbsp;" + attr + ": <b>" + htmlVal + "</b><br>", totalAttrs,
                                   used_attrs + [attr], used_vals + [val], newAttrVals, **args)
 
-        self.DrawText(side, attrList[0], (x0, x1), (y0, y1), totalAttrs, used_attrs, used_vals, attrVals)
+        self.DrawText(data, side, attrList[0], (x0, x1), (y0, y1), totalAttrs, used_attrs, used_vals, attrVals)
 
     ######################################################################
     ## DRAW TEXT - draw legend for all attributes in attrList and their possible values
-    def DrawText(self, side, attr, x0_x1, y0_y1, totalAttrs, used_attrs, used_vals, attrVals):
+    def DrawText(self, data, side, attr, x0_x1, y0_y1, totalAttrs, used_attrs, used_vals, attrVals):
         x0, x1 = x0_x1
         y0, y1 = y0_y1
         if self.drawnSides[side]: return
@@ -684,7 +673,7 @@ class OWMosaicDisplay(OWWidget):
         # the text on the right will be drawn when we are processing visualization of the last value of the first attribute
         if side == RIGHT:
             attr1Values = self.attributeValuesDict.get(used_attrs[0], None) or get_variable_values_sorted(
-                self.data.domain[used_attrs[0]])
+                data.domain[used_attrs[0]])
             if used_vals[0] != attr1Values[-1]:
                 return
 
@@ -697,7 +686,7 @@ class OWMosaicDisplay(OWWidget):
 
         self.drawnSides[side] = 1
 
-        values = self.attributeValuesDict.get(attr, None) or get_variable_values_sorted(self.data.domain[attr])
+        values = self.attributeValuesDict.get(attr, None) or get_variable_values_sorted(data.domain[attr])
         if side % 2:  values = values[::-1]
 
         width = x1 - x0 - (side % 2 == 0) * self._cellspace * (totalAttrs - side) * (len(values) - 1)
