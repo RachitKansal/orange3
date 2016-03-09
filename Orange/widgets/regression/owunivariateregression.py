@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from PyQt4.QtGui import QLayout
 from PyQt4 import QtCore
 from PyQt4 import QtGui
@@ -81,6 +82,7 @@ class OWUnivariateRegression(OWProvidesLearner, widget.OWWidget):
         self.comboBoxAttributesY.setModel(self.y_var_model)
 
         gui.rubber(self.controlArea)
+        self.controlArea.layout().addWidget(self.report_button)
 
         # main area GUI
         self.plotview = pg.PlotWidget(background="w")
@@ -108,6 +110,18 @@ class OWUnivariateRegression(OWProvidesLearner, widget.OWWidget):
         self.mainArea.layout().addWidget(self.plotview)
 
         self.apply()
+
+    def send_report(self):
+        self.report_items((("Name", self.learner_name),))
+
+        items = OrderedDict()
+        items["Input"] = "{}".format(self.x_var_model[self.x_var_index])
+        items["polynomial Expansion"] = "{}".format(self.polynomialexpansion)
+        items["Target"] = "{}".format(self.y_var_model[self.y_var_index])
+        self.report_items("Model parameters", items)
+
+        if self.data:
+            self.report_data("Data", self.data)
 
     def clear(self):
         self.data = None
