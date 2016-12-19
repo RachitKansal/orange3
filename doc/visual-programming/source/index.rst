@@ -23,6 +23,7 @@ Data
    :maxdepth: 1
 
    widgets/data/file
+   widgets/data/sql
    widgets/data/save
    widgets/data/datainfo
    widgets/data/datatable
@@ -32,6 +33,7 @@ Data
    widgets/data/discretize
    widgets/data/continuize
    widgets/data/concatenate
+   widgets/data/transpose
    widgets/data/paintdata
    widgets/data/pythonscript
    widgets/data/featureconstructor
@@ -119,6 +121,7 @@ Unsupervised
    widgets/unsupervised/savedistancematrix
    widgets/unsupervised/hierarchicalclustering
    widgets/unsupervised/kmeansclustering
+   widgets/unsupervised/manifoldlearning
    widgets/unsupervised/mds
    
 

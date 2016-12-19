@@ -71,7 +71,7 @@ class DistanceMatrixModel(QAbstractTableModel):
         elif isinstance(self.variable, DiscreteVariable):
             value = self.values[ind]
             if not isnan(value):
-                color = QColor(*self.variable.colors[value])
+                color = QColor(*self.variable.colors[int(value)])
         return QBrush(color)
 
     def color_for_cell(self, row, col):
@@ -172,7 +172,7 @@ class DistanceMatrixContextHandler(ContextHandler):
         context = super().new_context()
         context.dim = matrix.shape[0]
         context.annotations = self._var_names(annotations)
-        context.annotation_idx = 1
+        context.annotation = context.annotations[1]
         context.selection = []
         return context
 

@@ -30,7 +30,7 @@ class TreeLearner(Learner):
             subsets for values of discrete attributes. If `False` (default),
             each value gets its branch.
         min_samples_leaf: the minimal number of data instances in a leaf
-        min_samples_split: the minimal nubmer of data instances that is split
+        min_samples_split: the minimal number of data instances that is split
             into subgroups
         max_depth: the maximal depth of the tree
 
@@ -101,8 +101,9 @@ class TreeLearner(Learner):
             if score == 0:
                 return  REJECT_ATTRIBUTE
             score *= non_nans / len(col_x)
-            branches = (col_x > cut).astype(int)
-            branches[np.isnan(col_x)] = -1
+            branches = np.full(len(col_x), -1, dtype=int)
+            mask = ~np.isnan(col_x)
+            branches[mask] = (col_x[mask] > cut).astype(int)
             node = NumericNode(attr, attr_no, cut, None)
             return score, node, branches, 2
 

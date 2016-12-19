@@ -6,6 +6,7 @@ import unittest
 import unittest.mock
 
 import numpy as np
+from Orange.data.sql.backend.base import BackendError
 
 from numpy.testing import assert_almost_equal
 
@@ -519,12 +520,10 @@ class TestSqlTable(PostgresTest):
         sql_table = SqlTable(conn, table_name, inspect_values=True)
         self.assertFirstMetaIsInstance(sql_table, StringVariable)
 
-        filters = filter.Values([filter.FilterString(-1, 0, 'foo')])
+        filters = filter.Values([filter.FilterString(-1, filter.FilterString.Equal, 'foo')])
         self.assertEqual(len(filters(sql_table)), 0)
 
     def test_recovers_connection_after_sql_error(self):
-        import psycopg2
-
         conn, table_name = self.create_sql_table(
             np.arange(25).reshape((-1, 1)))
         sql_table = SqlTable(conn, table_name)
@@ -534,7 +533,7 @@ class TestSqlTable(PostgresTest):
                 sql_table.domain.attributes[0].to_sql(), sql_table.table_name)
             with sql_table.backend.execute_sql_query(broken_query) as cur:
                 cur.fetchall()
-        except psycopg2.DataError:
+        except BackendError:
             pass
 
         working_query = "SELECT %s FROM %s" % (

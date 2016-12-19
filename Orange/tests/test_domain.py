@@ -310,6 +310,15 @@ class TestDomainInit(unittest.TestCase):
         self.assertTrue(Domain([race], age).has_discrete_attributes(True))
         self.assertTrue(Domain([], [race, age]).has_discrete_attributes(True))
 
+        d = Domain([], None, [gender])
+        self.assertTrue(d.has_discrete_attributes(False, True))
+        d = Domain([], None, [age])
+        self.assertFalse(d.has_discrete_attributes(False, True))
+        d = Domain([], [age], [gender])
+        self.assertTrue(d.has_discrete_attributes(True, True))
+        d = Domain([], [incomeA], [age])
+        self.assertFalse(d.has_discrete_attributes(True, True))
+
     def test_has_continuous(self):
         self.assertFalse(Domain([]).has_continuous_attributes())
         self.assertFalse(Domain([], [age]).has_continuous_attributes())
@@ -327,6 +336,15 @@ class TestDomainInit(unittest.TestCase):
         self.assertTrue(Domain([age], race).has_continuous_attributes(True))
         self.assertTrue(Domain([race], age).has_continuous_attributes(True))
         self.assertTrue(Domain([], [race, age]).has_continuous_attributes(True))
+
+        d = Domain([], None, [age])
+        self.assertTrue(d.has_continuous_attributes(False, True))
+        d = Domain([], None, [gender])
+        self.assertFalse(d.has_continuous_attributes(False, True))
+        d = Domain([], [gender], [age])
+        self.assertTrue(d.has_continuous_attributes(True, True))
+        d = Domain([], [race], [gender])
+        self.assertFalse(d.has_continuous_attributes(True, True))
 
     def test_get_conversion(self):
         compute_value = lambda: 42
@@ -389,7 +407,7 @@ class TestDomainInit(unittest.TestCase):
                          DiscreteVariable("b", values="01")],
                         DiscreteVariable("y", values="01"))
         table = Table(domain, [[0, 1], [1, np.NaN]], [0, 1])
-        pre1 = Continuize(Impute(table))
+        pre1 = Continuize()(Impute()(table))
         pre2 = Table(pre1.domain, table)
         np.testing.assert_almost_equal(pre1.X, pre2.X)
 

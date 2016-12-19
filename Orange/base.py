@@ -1,4 +1,6 @@
 import inspect
+from collections import Iterable
+import re
 
 import numpy as np
 import scipy
@@ -8,28 +10,87 @@ from Orange.data.util import one_hot
 from Orange.misc.wrapper_meta import WrapperMeta
 from Orange.preprocess import (RemoveNaNClasses, Continuize,
                                RemoveNaNColumns, SklImpute)
+from Orange.util import Reprable, patch
+
 
 __all__ = ["Learner", "Model", "SklLearner", "SklModel"]
 
 
-class Learner:
+class _ReprableWithPreprocessors(Reprable):
+    def __repr__(self):
+        preprocessors = self.preprocessors
+        # TODO: Implement __eq__ on preprocessors to avoid comparing reprs
+        if repr(preprocessors) == repr(list(self.__class__.preprocessors)):
+            # If they are default, set to None temporarily to avoid printing
+            preprocessors = None
+        with patch.object(self, 'preprocessors', preprocessors):
+            return super().__repr__()
+
+
+class _ReprableWithParams(Reprable):
+    def __repr__(self):
+        # In addition to saving values onto self, SklLearners save into params
+        with patch.object(self, '__dict__', dict(self.__dict__, **self.params)):
+            return super().__repr__()
+
+
+class Learner(_ReprableWithPreprocessors):
+    """The base learner class.
+
+    Preprocessors can behave in a number of different ways, all of which are
+    described here.
+    If the user does not pass a preprocessor argument into the Learner
+    constructor, the default learner preprocessors are used. We assume the user
+    would simply like to get things done without having to worry about
+    preprocessors.
+    If the user chooses to pass in their own preprocessors, we assume they know
+    what they are doing. In this case, only the user preprocessors are used and
+    the default preprocessors are ignored.
+    In case the user would like to use the default preprocessors as well as
+    their own ones, the `use_default_preprocessors` flag should be set.
+
+    Parameters
+    ----------
+    preprocessors : Preprocessor or tuple[Preprocessor], optional
+        User defined preprocessors. If the user specifies their own
+        preprocessors, the default ones will not be used, unless the
+        `use_default_preprocessors` flag is set.
+
+    Attributes
+    ----------
+    preprocessors : tuple[Preprocessor] (default None)
+        The used defined preprocessors that will be used on any data.
+    use_default_preprocessors : bool (default False)
+        This flag indicates whether to use the default preprocessors that are
+        defined on the Learner class. Since preprocessors can be applied in a
+        number of ways
+    active_preprocessors : tuple[Preprocessor]
+        The processors that will be used when data is passed to the learner.
+        This depends on whether the user has passed in their own preprocessors
+        and whether the `use_default_preprocessors` flag is set.
+
+        This property is needed mainly because of the `Fitter` class, which can
+        not know in advance, which preprocessors it will need to use. Therefore
+        this resolves the active preprocessors using a lazy approach.
+
+    """
     supports_multiclass = False
     supports_weights = False
-    name = 'learner'
     #: A sequence of data preprocessors to apply on data prior to
     #: fitting the model
     preprocessors = ()
     learner_adequacy_err_msg = ''
 
     def __init__(self, preprocessors=None):
-        if preprocessors is None:
-            preprocessors = type(self).preprocessors
-        self.preprocessors = list(preprocessors)
+        self.use_default_preprocessors = False
+        if isinstance(preprocessors, Iterable):
+            self.preprocessors = tuple(preprocessors)
+        elif preprocessors:
+            self.preprocessors = (preprocessors,)
 
     def fit(self, X, Y, W=None):
         raise RuntimeError(
-            "Descendants of Learner must overload method fit or "
-            "fit_storage")
+            "Descendants of Learner must overload method fit or fit_storage")
 
     def fit_storage(self, data):
         """Default implementation of fit_storage defaults to calling fit.
@@ -65,21 +126,49 @@ class Learner:
         return model
 
     def preprocess(self, data):
-        """
-        Apply the `preprocessors` to the data.
-        """
-        for pp in self.preprocessors:
+        """Apply the `preprocessors` to the data"""
+        for pp in self.active_preprocessors:
             data = pp(data)
         return data
 
-    def __repr__(self):
-        return self.name
+    @property
+    def active_preprocessors(self):
+        yield from self.preprocessors
+        if (self.use_default_preprocessors and
+                self.preprocessors is not type(self).preprocessors):
+            yield from type(self).preprocessors
 
     def check_learner_adequacy(self, domain):
         return True
 
+    @property
+    def name(self):
+        """Return a short name derived from Learner type name"""
+        try:
+            return self.__name
+        except AttributeError:
+            name = self.__class__.__name__
+            if name.endswith('Learner'):
+                name = name[:-len('Learner')]
+            if name.endswith('Fitter'):
+                name = name[:-len('Fitter')]
+            if isinstance(self, SklLearner) and name.startswith('Skl'):
+                name = name[len('Skl'):]
+            name = name or 'learner'
+            # From http://stackoverflow.com/a/1176023/1090455 <3
+            self.name = re.sub(r'([a-z0-9])([A-Z])', r'\1 \2',
+                               re.sub(r'(.)([A-Z][a-z]+)', r'\1 \2', name)).lower()
+            return self.name
 
-class Model:
+    @name.setter
+    def name(self, value):
+        self.__name = value
+
+    def __str__(self):
+        return self.name
+
+
+class Model(Reprable):
     supports_multiclass = False
     supports_weights = False
     Value = 0
@@ -179,9 +268,6 @@ class Model:
         else:  # ret == Model.ValueProbs
             return value, probs
 
-    def __repr__(self):
-        return self.name
-
 
 class SklModel(Model, metaclass=WrapperMeta):
     used_vals = None
@@ -197,10 +283,11 @@ class SklModel(Model, metaclass=WrapperMeta):
         return value
 
     def __repr__(self):
-        return '{} {}'.format(self.name, self.params)
+        # Params represented as a comment because not passed into constructor
+        return super().__repr__() + '  # params=' + repr(self.params)
 
 
-class SklLearner(Learner, metaclass=WrapperMeta):
+class SklLearner(_ReprableWithParams, Learner, metaclass=WrapperMeta):
     """
     ${skldoc}
     Additional Orange parameters
@@ -213,11 +300,11 @@ class SklLearner(Learner, metaclass=WrapperMeta):
     __returns__ = SklModel
     _params = {}
 
-    name = 'skl learner'
-    preprocessors = [RemoveNaNClasses(),
-                     Continuize(),
-                     RemoveNaNColumns(),
-                     SklImpute()]
+    preprocessors = default_preprocessors = [
+        RemoveNaNClasses(),
+        Continuize(),
+        RemoveNaNColumns(),
+        SklImpute()]
 
     @property
     def params(self):
@@ -261,14 +348,6 @@ class SklLearner(Learner, metaclass=WrapperMeta):
         if W is None or not self.supports_weights:
             return self.__returns__(clf.fit(X, Y))
         return self.__returns__(clf.fit(X, Y, sample_weight=W.reshape(-1)))
-
-    def __str__(self):
-        return '{} {}'.format(self.name, self.params)
-
-    def __repr__(self):
-        return '{}({})'.format(type(self).__name__,
-                               ", ".join("{}={}".format(k, v)
-                                         for k, v in self.params.items()))
 
     @property
     def supports_weights(self):

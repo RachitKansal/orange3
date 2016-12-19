@@ -12,7 +12,10 @@ from Orange.base import SklLearner
 
 import Orange.classification
 from Orange.classification import (Learner, Model, NaiveBayesLearner,
-                                   LogisticRegressionLearner, NuSVMLearner)
+    LogisticRegressionLearner, NuSVMLearner, MajorityLearner, RandomForestLearner,
+    SimpleTreeLearner, SoftmaxRegressionLearner, SVMLearner, LinearSVMLearner,
+    OneClassSVMLearner, TreeLearner, KNNLearner, SimpleRandomForestLearner,
+    EllipticEnvelopeLearner)
 from Orange.classification.rules import _RuleLearner
 from Orange.data import (ContinuousVariable, DiscreteVariable,
                          Domain, Table, Variable)
@@ -25,10 +28,10 @@ class MultiClassTest(unittest.TestCase):
     def test_unsupported(self):
         nrows = 20
         ncols = 10
-        x = np.random.random_integers(1, 3, (nrows, ncols))
+        x = np.random.randint(1, 4, (nrows, ncols))
 
         # multiple class variables
-        y = np.random.random_integers(0, 1, (nrows, 2))
+        y = np.random.randint(0, 2, (nrows, 2))
         t = Table(x, y)
         learn = DummyLearner()
         # TODO: Errors raised from various data checks should be made consistent
@@ -36,7 +39,7 @@ class MultiClassTest(unittest.TestCase):
             clf = learn(t)
 
         # single class variable
-        y = np.random.random_integers(0, 1, (nrows, 1))
+        y = np.random.randint(0, 2, (nrows, 1))
         t = Table(x, y)
         learn = DummyLearner()
         clf = learn(t)
@@ -46,8 +49,8 @@ class MultiClassTest(unittest.TestCase):
     def test_supported(self):
         nrows = 20
         ncols = 10
-        x = np.random.random_integers(1, 3, (nrows, ncols))
-        y = np.random.random_integers(0, 1, (nrows, 2))
+        x = np.random.randint(1, 4, (nrows, ncols))
+        y = np.random.randint(0, 2, (nrows, 2))
         t = Table(x, y)
         learn = DummyMulticlassLearner()
         clf = learn(t)
@@ -72,10 +75,10 @@ class ModelTest(unittest.TestCase):
     def test_value_from_probs(self):
         nrows = 100
         ncols = 5
-        x = np.random.random_integers(0, 1, (nrows, ncols))
+        x = np.random.randint(0, 2, (nrows, ncols))
 
         # single class variable
-        y = np.random.random_integers(1, 3, (nrows, 1)) // 2    # majority = 1
+        y = np.random.randint(1, 4, (nrows, 1)) // 2    # majority = 1
         t = Table(x, y)
         learn = DummyLearner()
         clf = learn(t)
@@ -87,7 +90,7 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(probs.shape, (nrows, 2))
 
         # multitarget
-        y = np.random.random_integers(1, 5, (nrows, 2))
+        y = np.random.randint(1, 6, (nrows, 2))
         y[:, 0] = y[:, 0] // 3          # majority = 1
         y[:, 1] = (y[:, 1] + 4) // 3    # majority = 2
         domain = Domain([ContinuousVariable('i' + str(i)) for i in range(ncols)],
@@ -106,10 +109,10 @@ class ModelTest(unittest.TestCase):
     def test_probs_from_value(self):
         nrows = 100
         ncols = 5
-        x = np.random.random_integers(0, 1, (nrows, ncols))
+        x = np.random.randint(0, 2, (nrows, ncols))
 
         # single class variable
-        y = np.random.random_integers(0, 1, (nrows, 1))
+        y = np.random.randint(0, 2, (nrows, 1))
         t = Table(Domain([DiscreteVariable('v' + str(i), values=np.unique(x[:, i]))
                           for i in range(ncols)],
                          DiscreteVariable('c', values=[1, 2])),
@@ -124,7 +127,7 @@ class ModelTest(unittest.TestCase):
         self.assertEqual(probs.shape, (nrows, 2))
 
         # multitarget
-        y = np.random.random_integers(1, 5, (nrows, 2))
+        y = np.random.randint(1, 6, (nrows, 2))
         y[:, 0] = y[:, 0] // 3             # majority = 1
         y[:, 1] = (y[:, 1] + 4) // 3 - 1   # majority = 1
         domain = Domain([ContinuousVariable('i' + str(i)) for i in range(ncols)],
@@ -152,7 +155,7 @@ class ExpandProbabilitiesTest(unittest.TestCase):
                       for c in classes]
         meta_vars = []
         self.domain = Domain(attr_vars, class_vars, meta_vars)
-        self.x = np.random.random_integers(0, 1, (rows, attr))
+        self.x = np.random.randint(0, 2, (rows, attr))
 
     def test_single_class(self):
         rows = 10
@@ -160,7 +163,7 @@ class ExpandProbabilitiesTest(unittest.TestCase):
         vars = 1
         class_var_domain = 20
         self.prepareTable(rows, attr, vars, class_var_domain)
-        y = np.random.random_integers(2, 5, (rows, vars)) * 2
+        y = np.random.randint(2, 6, (rows, vars)) * 2
         t = Table(self.domain, self.x, y)
         learn = DummyLearner()
         clf = learn(t)
@@ -174,7 +177,7 @@ class ExpandProbabilitiesTest(unittest.TestCase):
         vars = 5
         class_var_domain = 20
         self.prepareTable(rows, attr, vars, class_var_domain)
-        y = np.random.random_integers(2, 5, (rows, vars)) * 2
+        y = np.random.randint(2, 6, (rows, vars)) * 2
         t = Table(self.domain, self.x, y)
         learn = DummyMulticlassLearner()
         clf = learn(t)
@@ -285,7 +288,7 @@ class LearnerAccessibility(unittest.TestCase):
         for learner in list(self.all_learners()):
             try:
                 learner = learner()
-            except Exception as err:
+            except Exception:
                 print('%s cannot be used with default parameters' % learner.__name__)
                 traceback.print_exc()
                 continue
@@ -309,7 +312,7 @@ class LearnerAccessibility(unittest.TestCase):
                 learner = learner()
                 table = Table("housing")
                 self.assertRaises(ValueError, learner, table)
-            except TypeError as err:
+            except TypeError:
                 traceback.print_exc()
                 continue
 
@@ -319,6 +322,32 @@ class LearnerAccessibility(unittest.TestCase):
                 learner = learner()
                 table = Table(test_filename("test8.tab"))
                 self.assertRaises(ValueError, learner, table)
-            except TypeError as err:
+            except TypeError:
                 traceback.print_exc()
                 continue
+
+
+class LearnerReprs(unittest.TestCase):
+    def test_reprs(self):
+        lr = LogisticRegressionLearner(tol=0.0002)
+        m = MajorityLearner()
+        nb = NaiveBayesLearner()
+        rf = RandomForestLearner(bootstrap=False, n_jobs=3)
+        st = SimpleTreeLearner(seed=1, bootstrap=True)
+        sm = SoftmaxRegressionLearner()
+        svm = SVMLearner(shrinking=False)
+        lsvm = LinearSVMLearner(tol=0.022, dual=False)
+        nsvm = NuSVMLearner(tol=0.003, cache_size=190)
+        osvm = OneClassSVMLearner(degree=2)
+        tl = TreeLearner(max_depth=3, min_samples_split=1)
+        knn = KNNLearner(n_neighbors=4)
+        el = EllipticEnvelopeLearner(store_precision=False)
+        srf = SimpleRandomForestLearner(n_estimators=20)
+
+        learners = [lr, m, nb, rf, st, sm, svm,
+            lsvm, nsvm, osvm, tl, knn, el, srf]
+
+        for l in learners:
+            repr_str = repr(l)
+            new_l = eval(repr_str)
+            self.assertEqual(repr(new_l), repr_str)

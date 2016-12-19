@@ -3,6 +3,8 @@
 
 import unittest
 import multiprocessing as mp
+from unittest.mock import patch
+
 import numpy as np
 
 from Orange.classification import NaiveBayesLearner, MajorityLearner
@@ -16,7 +18,7 @@ from Orange.util import OrangeWarning
 
 def random_data(nrows, ncols):
     np.random.seed(42)
-    x = np.random.random_integers(0, 1, (nrows, ncols))
+    x = np.random.randint(0, 2, (nrows, ncols))
     col = np.random.randint(ncols)
     y = x[:nrows, col].reshape(nrows, 1)
     table = Table(x, y)
@@ -269,6 +271,12 @@ class TestCrossValidation(TestSampling):
         self.assertWarns(OrangeWarning,
                          CrossValidation, self.iris, [_ParameterTuningLearner()], k=2, n_jobs=3)
         proc.daemon = was_daemon
+
+    def test_njobs(self):
+        with patch('Orange.evaluation.testing.CrossValidation._MIN_NJOBS_X_SIZE', 1):
+            res = CrossValidation(self.random_table, [NaiveBayesLearner()], k=5, n_jobs=3)
+        self.check_folds(res, 5, self.nrows)
+
 
 class TestLeaveOneOut(TestSampling):
     def test_results(self):

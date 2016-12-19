@@ -91,6 +91,7 @@ class OWConfusionMatrix(widget.OWWidget):
                   "Proportion of predicted",
                   "Proportion of actual"]
 
+    settings_version = 1
     settingsHandler = settings.ClassValuesContextHandler()
 
     selected_learner = settings.Setting([0], schema_only=True)
@@ -229,7 +230,7 @@ class OWConfusionMatrix(widget.OWWidget):
 
         data = None
         if results is not None and results.data is not None:
-            data = results.data
+            data = results.data[results.row_indices]
 
         if data is not None and not data.domain.has_discrete_class:
             self.Error.no_regression()
@@ -375,9 +376,8 @@ class OWConfusionMatrix(widget.OWWidget):
             data.name = learner_name
 
             if selected:
-                row_indices = self.results.row_indices[selected]
-                annotated_data = create_annotated_table(data, row_indices)
-                data = data[row_indices]
+                annotated_data = create_annotated_table(data, selected)
+                data = data[selected]
             else:
                 annotated_data = create_annotated_table(data, [])
                 data = None
@@ -483,6 +483,19 @@ class OWConfusionMatrix(widget.OWWidget):
                 format(self.learners[self.selected_learner[0]],
                        self.quantities[self.selected_quantity].lower()),
                 self.tableview)
+
+    @classmethod
+    def migrate_settings(cls, settings, version):
+        super().migrate_settings(settings, version)
+        if not version:
+            # For some period of time the 'selected_learner' property was
+            # changed from List[int] -> int
+            # (commit 4e49bb3fd0e11262f3ebf4b1116a91a4b49cc982) and then back
+            # again (commit 8a492d79a2e17154a0881e24a05843406c8892c0)
+            if "selected_learner" in settings and \
+                    isinstance(settings["selected_learner"], int):
+                settings["selected_learner"] = [settings["selected_learner"]]
+
 
 if __name__ == "__main__":
     from AnyQt.QtWidgets import QApplication

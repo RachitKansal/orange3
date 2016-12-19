@@ -1,5 +1,5 @@
 import os
-import pickle
+import dill as pickle
 
 from AnyQt.QtCore import QTimer
 from AnyQt.QtWidgets import (
@@ -12,6 +12,7 @@ from Orange.widgets.settings import Setting
 from Orange.widgets.utils import stdpaths
 
 from Orange.widgets.classify import owsaveclassifier
+from Orange.widgets.widget import Msg
 
 
 class OWLoadClassifier(widget.OWWidget):
@@ -26,6 +27,9 @@ class OWLoadClassifier(widget.OWWidget):
     history = Setting([])
     #: Current (last selected) filename or None.
     filename = Setting(None)
+
+    class Error(widget.OWWidget.Error):
+        load_error = Msg("An error occured while reading '{}'")
 
     FILTER = owsaveclassifier.OWSaveClassifier.FILTER
 
@@ -95,12 +99,12 @@ class OWLoadClassifier(widget.OWWidget):
     def load(self, filename):
         """Load the object from filename and send it to output."""
         try:
-            classifier = pickle.load(open(filename, "rb"))
-        except pickle.UnpicklingError:
-            raise  # TODO: error reporting
-        except os.error:
-            raise  # TODO: error reporting
+            with open(filename, "rb") as f:
+                classifier = pickle.load(f)
+        except (pickle.UnpicklingError, OSError, EOFError):
+            self.Error.load_error(os.path.split(filename)[-1])
         else:
+            self.Error.load_error.clear()
             self._remember(filename)
             self.send("Classifier", classifier)
 

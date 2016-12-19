@@ -1,7 +1,7 @@
 # Test methods with long descriptive names can omit docstrings
 # pylint: disable=missing-docstring
-from PyQt4.QtCore import QEvent, QPoint, Qt
-from PyQt4.QtGui import QMouseEvent
+from AnyQt.QtCore import QEvent, QPoint, Qt
+from AnyQt.QtGui import QMouseEvent
 
 from Orange.widgets.tests.base import WidgetTest, WidgetOutputsTestMixin
 from Orange.widgets.visualize.owsieve import OWSieveDiagram
@@ -20,6 +20,7 @@ class TestOWSieveDiagram(WidgetTest, WidgetOutputsTestMixin):
         self.widget = self.create_widget(OWSieveDiagram)
 
     def _select_data(self):
+        self.widget.attr_x, self.widget.attr_y = self.data.domain[:2]
         area = self.widget.areas[0]
         self.widget.select_area(area, QMouseEvent(
             QEvent.MouseButtonPress, QPoint(), Qt.LeftButton,

@@ -4,14 +4,15 @@ import re
 from math import isnan
 from numbers import Real
 
+from Orange.util import Reprable
 import numpy as np
 import bottleneck as bn
 
 from Orange.data import Instance, Storage, Variable
-from Orange.misc.enum import Enum
+from Orange.util import Enum
 
 
-class Filter:
+class Filter(Reprable):
     """
     The base class for filters.
 
@@ -286,6 +287,10 @@ class FilterDiscrete(ValueFilter):
         else:
             return value in self.values
 
+    def __eq__(self, other):
+        return isinstance(other, FilterDiscrete) and \
+               self.column == other.column and self.values == other.values
+
 
 class FilterContinuous(ValueFilter):
     """
@@ -311,18 +316,18 @@ class FilterContinuous(ValueFilter):
         `LessEqual`, `Greater`, `GreaterEqual`, `Between`, `Outside` or
         `IsDefined`.
     """
+    Type = Enum('FilterContinuous',
+                'Equal, NotEqual, Less, LessEqual, Greater,'
+                'GreaterEqual, Between, Outside, IsDefined')
+    (Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual,
+     Between, Outside, IsDefined) = Type
 
-    def __init__(self, position, oper, ref=None, max=None, **a):
+    def __init__(self, position, oper, ref=None, max=None, min=None):
         super().__init__(position)
-        if a:
-            if len(a) != 1 or "min" not in a:
-                raise TypeError(
-                    "FilterContinuous got unexpected keyword arguments")
-            else:
-                ref = a["min"]
-        self.ref = ref
+        self.ref = ref if min is None else min
         self.max = max
         self.oper = oper
+        self.position = position
 
     @property
     def min(self):
@@ -358,6 +363,11 @@ class FilterContinuous(ValueFilter):
             return True
         raise ValueError("invalid operator")
 
+    def __eq__(self, other):
+        return isinstance(other, FilterContinuous) and \
+               self.column == other.column and self.oper == other.oper and \
+               self.ref == other.ref and self.max == other.max
+
     def __str__(self):
         if isinstance(self.column, str):
             column = self.column
@@ -378,17 +388,6 @@ class FilterContinuous(ValueFilter):
         if self.oper == self.IsDefined:
             return "{} is defined".format(column)
         return "invalid operator"
-
-    __repr__ = __str__
-
-
-    # For PyCharm:
-    Equal = NotEqual = Less = LessEqual = Greater = GreaterEqual = 0
-    Between = Outside = IsDefined = 0
-
-
-Enum("Equal", "NotEqual", "Less", "LessEqual", "Greater", "GreaterEqual",
-     "Between", "Outside", "IsDefined").pull_up(FilterContinuous)
 
 
 class FilterString(ValueFilter):
@@ -419,6 +418,12 @@ class FilterString(ValueFilter):
 
         Tells whether the comparisons are case sensitive
     """
+    Type = Enum('FilterString',
+                'Equal, NotEqual, Less, LessEqual, Greater,'
+                'GreaterEqual, Between, Outside, Contains,'
+                'StartsWith, EndsWith, IsDefined')
+    (Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual,
+     Between, Outside, Contains, StartsWith, EndsWith, IsDefined) = Type
 
     def __init__(self, position, oper, ref=None, max=None,
                  case_sensitive=True, **a):
@@ -433,6 +438,7 @@ class FilterString(ValueFilter):
         self.max = max
         self.oper = oper
         self.case_sensitive = case_sensitive
+        self.position = position
 
     @property
     def min(self):
@@ -478,17 +484,6 @@ class FilterString(ValueFilter):
         if self.oper == self.Outside:
             return not refval <= value <= high
         raise ValueError("invalid operator")
-
-    # For PyCharm:
-    Equal = NotEqual = Less = LessEqual = Greater = GreaterEqual = 0
-    Between = Outside = Contains = StartsWith = EndsWith = IsDefined = 0
-
-
-Enum("Equal", "NotEqual",
-     "Less", "LessEqual", "Greater", "GreaterEqual",
-     "Between", "Outside",
-     "Contains", "StartsWith", "EndsWith",
-     "IsDefined").pull_up(FilterString)
 
 
 class FilterStringList(ValueFilter):
@@ -539,6 +534,9 @@ class FilterRegex(ValueFilter):
     def __init__(self, column, pattern, flags=0):
         super().__init__(column)
         self._re = re.compile(pattern, flags)
+        self.column = column
+        self.pattern = pattern
+        self.flags = flags
 
     def __call__(self, inst):
         return bool(self._re.search(inst or ''))

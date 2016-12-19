@@ -7,10 +7,11 @@ import itertools
 
 import numpy as np
 
-from Orange.data import Table, Domain, ContinuousVariable
+from Orange.data import Table, Domain, ContinuousVariable, DiscreteVariable, \
+    StringVariable
 from Orange.data.filter import \
     FilterContinuous, FilterDiscrete, FilterString, Values, HasClass, \
-    IsDefined, SameValue
+    IsDefined, SameValue, Random, ValueFilter, FilterStringList, FilterRegex
 
 NIMOCK = MagicMock(side_effect=NotImplementedError())
 
@@ -246,6 +247,26 @@ class TestFilterContinuous(unittest.TestCase):
         flt.oper = -1
         self.assertEqual(str(flt), "invalid operator")
 
+    def test_eq(self):
+        flt1 = FilterContinuous(1, FilterContinuous.Between, 1, 2)
+        flt2 = FilterContinuous(1, FilterContinuous.Between, 1, 2)
+        flt3 = FilterContinuous(1, FilterContinuous.Between, 1, 3)
+        self.assertEqual(flt1, flt2)
+        self.assertNotEqual(flt1, flt3)
+        self.assertEqual(flt1.__dict__ == flt2.__dict__, flt1 == flt2)
+        self.assertEqual(flt1.__dict__ == flt3.__dict__, flt1 == flt3)
+
+
+class TestFilterDiscrete(unittest.TestCase):
+    def test_eq(self):
+        flt1 = FilterDiscrete(1, None)
+        flt2 = FilterDiscrete(1, None)
+        flt3 = FilterDiscrete(2, None)
+        self.assertEqual(flt1, flt2)
+        self.assertEqual(flt1.__dict__ == flt2.__dict__, flt1 == flt2)
+        self.assertNotEqual(flt1, flt3)
+        self.assertEqual(flt1.__dict__ == flt3.__dict__, flt1 == flt3)
+
 
 class TestFilterString(unittest.TestCase):
 
@@ -394,3 +415,36 @@ class TestSameValueFilter(unittest.TestCase):
     @patch('Orange.data.Table._filter_same_value', NIMOCK)
     def test_has_class_filter_not_implemented(self):
         self.test_same_value_filter_table()
+
+
+class TestFilterReprs(unittest.TestCase):
+    def setUp(self):
+        self.table = Table('zoo')
+        self.attr_disc  = self.table.domain["type"]
+        self.value_disc = self.attr_disc.to_val("mammal")
+        self.vs = self.table.domain.variables
+
+        self.table2 = Table("zoo")
+        self.inst = self.table2[0]  # aardvark
+
+    def test_reprs(self):
+        flid = IsDefined(negate=True)
+        flhc = HasClass()
+        flr = Random()
+        fld = FilterDiscrete(self.attr_disc, None)
+        flsv = SameValue(self.attr_disc, self.value_disc, negate=True)
+        flc = FilterContinuous(self.vs[0], FilterContinuous.Less, 5)
+        flc2 = FilterContinuous(self.vs[1], FilterContinuous.Greater, 3)
+        flv = Values([flc, flc2], conjunction=False, negate=True)
+        flvf = ValueFilter(self.attr_disc)
+        fls = FilterString("name", FilterString.Equal, "Aardvark", case_sensitive=False)
+        flsl = FilterStringList("name", ["Aardvark"], case_sensitive=False)
+        flrx = FilterRegex("name", "^c...$")
+
+        filters = [flid, flhc, flr, fld, flsv, flc, flv, flvf, fls, flsl, flrx]
+
+        for f in filters:
+            repr_str = repr(f)
+            print(repr_str)
+            new_f = eval(repr_str)
+            self.assertEqual(repr(new_f), repr_str)

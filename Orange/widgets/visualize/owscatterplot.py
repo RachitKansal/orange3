@@ -74,10 +74,13 @@ class ScatterPlotVizRank(VizRankDialogAttrPair):
         knn = NearestNeighbors(n_neighbors=n_neighbors).fit(X)
         ind = knn.kneighbors(return_distance=False)
         if self.master.data.domain.has_discrete_class:
-            return -np.sum(Y[ind] == Y.reshape(-1, 1))
+            return -np.sum(Y[ind] == Y.reshape(-1, 1)) / n_neighbors / len(Y)
         else:
             return -r2_score(Y, np.mean(Y[ind], axis=1)) * \
                    (len(Y) / len(self.master.data))
+
+    def bar_length(self, score):
+        return max(0, -score)
 
     def score_heuristic(self):
         X = self.master.graph.jittered_data.T
@@ -195,7 +198,7 @@ class OWScatterPlot(OWWidget):
             callback=self.update_colors,
             model=self.color_model, **common_options)
         self.label_model = DomainModel(
-            placeholder="(No labels)", valid_types=dmod.PRIMITIVE)
+            placeholder="(No labels)")
         self.cb_attr_label = gui.comboBox(
             box, self, "graph.attr_label", label="Label:",
             callback=self.graph.update_labels,
